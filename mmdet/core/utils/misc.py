@@ -59,8 +59,10 @@ def arange(start=0,
         if isinstance(step, torch.Tensor):
             n = (n + step - 1) // step
 
-        result = torch.ones(n, layout=layout, device=device)\
-            .nonzero().view(-1) + start_tensor
+        # result = torch.ones(n, layout=layout, device=device) \
+        #              .nonzero().view(-1) + start_tensor
+        # Should work in opset11+
+        result = torch.cumsum(torch.ones(n, layout=layout, device=device), 0) + start_tensor - 1
 
         if isinstance(step, torch.Tensor) or step > 1:
             result = result.view(-1, step)\

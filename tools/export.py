@@ -13,7 +13,6 @@ from mmdet.apis import init_detector
 from mmdet.apis.inference import LoadImage
 from mmdet.datasets.pipelines import Compose
 from mmdet.models.anchor_heads.anchor_head import AnchorHead
-from mmdet.utils.export import init_extra_opsets
 
 
 @parse_args('v', 'v', 'v', 'v', 'none')
@@ -196,8 +195,6 @@ def main(args):
     model = init_detector(args.config, args.checkpoint, device="cpu")
     model.eval().cuda()
     torch.set_default_tensor_type(torch.FloatTensor)
-
-    init_extra_opsets()
 
     # if isinstance(model.bbox_head, AnchorHead):
     #     anchor_generators = model.bbox_head.anchor_generators

@@ -62,7 +62,7 @@ class ONNXModel(object):
     def __init__(self, model_file_path, cfg=None, classes=None):
         self.device = onnxruntime.get_device()
         self.model = onnx.load(model_file_path)
-        self.model = polish_model(self.model)
+        # self.model = polish_model(self.model)
         self.classes = classes
         self.pt_model = None
         if cfg is not None:

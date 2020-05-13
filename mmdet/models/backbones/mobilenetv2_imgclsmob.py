@@ -3,12 +3,17 @@
     Original paper: 'MobileNetV2: Inverted Residuals and Linear Bottlenecks,' https://arxiv.org/abs/1801.04381.
 """
 
-__all__ = ['MobileNetV2', 'mobilenetv2_w1', 'mobilenetv2_w3d4', 'mobilenetv2_wd2', 'mobilenetv2_wd4', 'mobilenetv2b_w1',
-           'mobilenetv2b_w3d4', 'mobilenetv2b_wd2', 'mobilenetv2b_wd4']
+__all__ = [
+    'MobileNetV2', 'mobilenetv2_w1', 'mobilenetv2_w3d4', 'mobilenetv2_wd2',
+    'mobilenetv2_wd4', 'mobilenetv2b_w1', 'mobilenetv2b_w3d4',
+    'mobilenetv2b_wd2', 'mobilenetv2b_wd4'
+]
 
 import os
+
 import torch.nn as nn
 import torch.nn.init as init
+
 from .common import conv1x1, conv1x1_block, conv3x3_block, dwconv3x3_block
 
 
@@ -29,11 +34,8 @@ class LinearBottleneck(nn.Module):
     remove_exp_conv : bool
         Whether to remove expansion convolution.
     """
-    def __init__(self,
-                 in_channels,
-                 out_channels,
-                 stride,
-                 expansion,
+
+    def __init__(self, in_channels, out_channels, stride, expansion,
                  remove_exp_conv):
         super(LinearBottleneck, self).__init__()
         self.residual = (in_channels == out_channels) and (stride == 1)
@@ -88,6 +90,7 @@ class MobileNetV2(nn.Module):
     num_classes : int, default 1000
         Number of classification classes.
     """
+
     def __init__(self,
                  channels,
                  init_block_channels,
@@ -101,38 +104,41 @@ class MobileNetV2(nn.Module):
         self.num_classes = num_classes
 
         self.features = nn.Sequential()
-        self.features.add_module("init_block", conv3x3_block(
-            in_channels=in_channels,
-            out_channels=init_block_channels,
-            stride=2,
-            activation="relu6"))
+        self.features.add_module(
+            "init_block",
+            conv3x3_block(
+                in_channels=in_channels,
+                out_channels=init_block_channels,
+                stride=2,
+                activation="relu6"))
         in_channels = init_block_channels
         for i, channels_per_stage in enumerate(channels):
             stage = nn.Sequential()
             for j, out_channels in enumerate(channels_per_stage):
                 stride = 2 if (j == 0) and (i != 0) else 1
                 expansion = (i != 0) or (j != 0)
-                stage.add_module("unit{}".format(j + 1), LinearBottleneck(
-                    in_channels=in_channels,
-                    out_channels=out_channels,
-                    stride=stride,
-                    expansion=expansion,
-                    remove_exp_conv=remove_exp_conv))
+                stage.add_module(
+                    "unit{}".format(j + 1),
+                    LinearBottleneck(
+                        in_channels=in_channels,
+                        out_channels=out_channels,
+                        stride=stride,
+                        expansion=expansion,
+                        remove_exp_conv=remove_exp_conv))
                 in_channels = out_channels
             self.features.add_module("stage{}".format(i + 1), stage)
-        self.features.add_module("final_block", conv1x1_block(
-            in_channels=in_channels,
-            out_channels=final_block_channels,
-            activation="relu6"))
+        self.features.add_module(
+            "final_block",
+            conv1x1_block(
+                in_channels=in_channels,
+                out_channels=final_block_channels,
+                activation="relu6"))
         in_channels = final_block_channels
-        self.features.add_module("final_pool", nn.AvgPool2d(
-            kernel_size=7,
-            stride=1))
+        self.features.add_module("final_pool",
+                                 nn.AvgPool2d(kernel_size=7, stride=1))
 
         self.output = conv1x1(
-            in_channels=in_channels,
-            out_channels=num_classes,
-            bias=False)
+            in_channels=in_channels, out_channels=num_classes, bias=False)
 
         self._init_params()
 
@@ -181,9 +187,9 @@ def get_mobilenetv2(width_scale,
 
     from functools import reduce
     channels = reduce(
-        lambda x, y: x + [[y[0]] * y[1]] if y[2] != 0 else x[:-1] + [x[-1] + [y[0]] * y[1]],
-        zip(channels_per_layers, layers, downsample),
-        [[]])
+        lambda x, y: x + [[y[0]] * y[1]]
+        if y[2] != 0 else x[:-1] + [x[-1] + [y[0]] * y[1]],
+        zip(channels_per_layers, layers, downsample), [[]])
 
     if width_scale != 1.0:
         channels = [[int(cij * width_scale) for cij in ci] for ci in channels]
@@ -200,12 +206,12 @@ def get_mobilenetv2(width_scale,
 
     if pretrained:
         if (model_name is None) or (not model_name):
-            raise ValueError("Parameter `model_name` should be properly initialized for loading pretrained model.")
+            raise ValueError(
+                "Parameter `model_name` should be properly initialized for loading pretrained model."
+            )
         from .model_store import download_model
         download_model(
-            net=net,
-            model_name=model_name,
-            local_model_store_dir_path=root)
+            net=net, model_name=model_name, local_model_store_dir_path=root)
 
     return net
 
@@ -222,7 +228,8 @@ def mobilenetv2_w1(**kwargs):
     root : str, default '~/.torch/models'
         Location for keeping the model parameters.
     """
-    return get_mobilenetv2(width_scale=1.0, model_name="mobilenetv2_w1", **kwargs)
+    return get_mobilenetv2(
+        width_scale=1.0, model_name="mobilenetv2_w1", **kwargs)
 
 
 def mobilenetv2_w3d4(**kwargs):
@@ -237,7 +244,8 @@ def mobilenetv2_w3d4(**kwargs):
     root : str, default '~/.torch/models'
         Location for keeping the model parameters.
     """
-    return get_mobilenetv2(width_scale=0.75, model_name="mobilenetv2_w3d4", **kwargs)
+    return get_mobilenetv2(
+        width_scale=0.75, model_name="mobilenetv2_w3d4", **kwargs)
 
 
 def mobilenetv2_wd2(**kwargs):
@@ -252,7 +260,8 @@ def mobilenetv2_wd2(**kwargs):
     root : str, default '~/.torch/models'
         Location for keeping the model parameters.
     """
-    return get_mobilenetv2(width_scale=0.5, model_name="mobilenetv2_wd2", **kwargs)
+    return get_mobilenetv2(
+        width_scale=0.5, model_name="mobilenetv2_wd2", **kwargs)
 
 
 def mobilenetv2_wd4(**kwargs):
@@ -267,7 +276,8 @@ def mobilenetv2_wd4(**kwargs):
     root : str, default '~/.torch/models'
         Location for keeping the model parameters.
     """
-    return get_mobilenetv2(width_scale=0.25, model_name="mobilenetv2_wd4", **kwargs)
+    return get_mobilenetv2(
+        width_scale=0.25, model_name="mobilenetv2_wd4", **kwargs)
 
 
 def mobilenetv2b_w1(**kwargs):
@@ -282,7 +292,11 @@ def mobilenetv2b_w1(**kwargs):
     root : str, default '~/.torch/models'
         Location for keeping the model parameters.
     """
-    return get_mobilenetv2(width_scale=1.0, remove_exp_conv=True, model_name="mobilenetv2b_w1", **kwargs)
+    return get_mobilenetv2(
+        width_scale=1.0,
+        remove_exp_conv=True,
+        model_name="mobilenetv2b_w1",
+        **kwargs)
 
 
 def mobilenetv2b_w3d4(**kwargs):
@@ -297,7 +311,11 @@ def mobilenetv2b_w3d4(**kwargs):
     root : str, default '~/.torch/models'
         Location for keeping the model parameters.
     """
-    return get_mobilenetv2(width_scale=0.75, remove_exp_conv=True, model_name="mobilenetv2b_w3d4", **kwargs)
+    return get_mobilenetv2(
+        width_scale=0.75,
+        remove_exp_conv=True,
+        model_name="mobilenetv2b_w3d4",
+        **kwargs)
 
 
 def mobilenetv2b_wd2(**kwargs):
@@ -312,7 +330,11 @@ def mobilenetv2b_wd2(**kwargs):
     root : str, default '~/.torch/models'
         Location for keeping the model parameters.
     """
-    return get_mobilenetv2(width_scale=0.5, remove_exp_conv=True, model_name="mobilenetv2b_wd2", **kwargs)
+    return get_mobilenetv2(
+        width_scale=0.5,
+        remove_exp_conv=True,
+        model_name="mobilenetv2b_wd2",
+        **kwargs)
 
 
 def mobilenetv2b_wd4(**kwargs):
@@ -327,7 +349,11 @@ def mobilenetv2b_wd4(**kwargs):
     root : str, default '~/.torch/models'
         Location for keeping the model parameters.
     """
-    return get_mobilenetv2(width_scale=0.25, remove_exp_conv=True, model_name="mobilenetv2b_wd4", **kwargs)
+    return get_mobilenetv2(
+        width_scale=0.25,
+        remove_exp_conv=True,
+        model_name="mobilenetv2b_wd4",
+        **kwargs)
 
 
 def _calc_width(net):

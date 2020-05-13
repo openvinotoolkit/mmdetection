@@ -9,6 +9,7 @@ from terminaltables import AsciiTable
 from .recall import eval_recalls
 from .text_evaluation import text_eval
 
+
 def coco_eval(result_files,
               result_types,
               coco,
@@ -52,8 +53,10 @@ def coco_eval(result_files,
 
         predictions = cocoEval.cocoDt.imgToAnns
         gt_annotations = cocoEval.cocoGt.imgToAnns
-        recall, precision, hmean, _ = text_eval(predictions, gt_annotations, use_transcriptions=False)
-        print(' Text detection recall={:.4f} precision={:.4f} hmean={:.4f}'.format(recall, precision, hmean))
+        recall, precision, hmean, _ = text_eval(
+            predictions, gt_annotations, use_transcriptions=False)
+        print(' Text detection recall={:.4f} precision={:.4f} hmean={:.4f}'.
+              format(recall, precision, hmean))
         cocoEval.stats[-1] = hmean
 
         if classwise:

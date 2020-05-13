@@ -11,20 +11,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions
 # and limitations under the License.
-
 """ This module contains evaluation procedure. """
 
-import Polygon as plg
 import cv2
-import numpy as np
-# import pycocotools.mask as mask_utils
 import matplotlib.pyplot as plt
-
+import numpy as np
+import Polygon as plg
+import pycocotools.mask as mask_utils
 
 IOU_CONSTRAINT = 0.5
 AREA_PRECISION_CONSTRAINT = 0.5
 CONFIDENCE_THRESHOLD = 0.25
-
 
 
 def masks_to_rects(masks, is_rle):
@@ -32,7 +29,8 @@ def masks_to_rects(masks, is_rle):
     for mask in masks:
         decoded_mask = mask_utils.decode(mask) if is_rle else mask
         decoded_mask = np.ascontiguousarray(decoded_mask)
-        contours, _ = cv2.findContours(decoded_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)[-2:]
+        contours, _ = cv2.findContours(decoded_mask, cv2.RETR_EXTERNAL,
+                                       cv2.CHAIN_APPROX_NONE)[-2:]
 
         areas = []
         boxes = []
@@ -65,15 +63,22 @@ def draw_gt_polygons(image, gt_polygons, gt_dont_care_nums):
     """ Draws groundtruth polygons on image. """
 
     for point_idx, polygon in enumerate(gt_polygons):
-        color = (128, 128, 128) if point_idx in gt_dont_care_nums else (255, 0, 0)
+        color = (128, 128, 128) if point_idx in gt_dont_care_nums else (255, 0,
+                                                                        0)
         for i in range(4):
             pt1 = int(polygon[0][i][0]), int(polygon[0][i][1])
-            pt2 = int(polygon[0][(i + 1) % 4][0]), int(polygon[0][(i + 1) % 4][1])
+            pt2 = int(polygon[0][(i + 1) % 4][0]), int(polygon[0][(i + 1) %
+                                                                  4][1])
             cv2.line(image, pt1, pt2, color, 2)
     return image
 
 
-def draw_pr_polygons(image, pr_polygons, pr_dont_care_nums, pr_matched_nums, pr_confidences_list, pr_transcriptions=[]):
+def draw_pr_polygons(image,
+                     pr_polygons,
+                     pr_dont_care_nums,
+                     pr_matched_nums,
+                     pr_confidences_list,
+                     pr_transcriptions=[]):
     """ Draws predicted polygons on image. """
     # image = cv2.imread(image)
     for point_idx, _ in enumerate(pr_polygons):
@@ -93,11 +98,13 @@ def draw_pr_polygons(image, pr_polygons, pr_dont_care_nums, pr_matched_nums, pr_
 
                 if pr_transcriptions:
                     pt1 = int(polygon[0][0][0]), int(polygon[0][0][1])
-                    cv2.putText(image, pr_transcriptions[point_idx], pt1, cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 0), 2)
+                    cv2.putText(image, pr_transcriptions[point_idx], pt1,
+                                cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 0), 2)
 
             for i in range(4):
                 pt1 = int(polygon[0][i][0]), int(polygon[0][i][1])
-                pt2 = int(polygon[0][(i + 1) % 4][0]), int(polygon[0][(i + 1) % 4][1])
+                pt2 = int(polygon[0][(i + 1) % 4][0]), int(polygon[0][(i + 1) %
+                                                                      4][1])
                 cv2.line(image, pt1, pt2, color, 2)
     return image
 
@@ -105,7 +112,8 @@ def draw_pr_polygons(image, pr_polygons, pr_dont_care_nums, pr_matched_nums, pr_
 def get_union(polygon1, polygon2):
     """ Returns area of union of two polygons. """
 
-    return polygon1.area() + polygon2.area() - get_intersection(polygon1, polygon2)
+    return polygon1.area() + polygon2.area() - get_intersection(
+        polygon1, polygon2)
 
 
 def get_intersection_over_union(polygon1, polygon2):
@@ -180,12 +188,12 @@ def is_word(text):
         if char in forbidden_symbols:
             return False
 
-        if not (range1[0] <= char_code <= range1[1] or \
-                range2[0] <= char_code <= range2[1] or \
-                range3[0] <= char_code <= range3[1] or \
-                range4[0] <= char_code <= range4[1] or \
-                range5[0] <= char_code <= range5[1] or \
-                range6[0] <= char_code <= range6[1]):
+        if not (range1[0] <= char_code <= range1[1]
+                or range2[0] <= char_code <= range2[1]
+                or range3[0] <= char_code <= range3[1]
+                or range4[0] <= char_code <= range4[1]
+                or range5[0] <= char_code <= range5[1]
+                or range6[0] <= char_code <= range6[1]):
             return False
 
     return True
@@ -233,15 +241,22 @@ def parse_pr_objects(pr_annotation, use_transcription, confidence_threshold):
 
     # Filter out detections with low confidence.
     filter_mask = [(el > confidence_threshold) for el in pr_confidences_list]
-    pr_polygons_list = [el for (i, el) in enumerate(pr_polygons_list) if filter_mask[i]]
-    pr_confidences_list = [el for (i, el) in enumerate(pr_confidences_list) if filter_mask[i]]
+    pr_polygons_list = [
+        el for (i, el) in enumerate(pr_polygons_list) if filter_mask[i]
+    ]
+    pr_confidences_list = [
+        el for (i, el) in enumerate(pr_confidences_list) if filter_mask[i]
+    ]
     if use_transcription:
-        pr_transcriptions = [el for (i, el) in enumerate(pr_transcriptions) if filter_mask[i]]
+        pr_transcriptions = [
+            el for (i, el) in enumerate(pr_transcriptions) if filter_mask[i]
+        ]
 
     return pr_polygons_list, pr_confidences_list, pr_transcriptions
 
 
-def match_dont_care_objects(gt_polygons_list, gt_dont_care_polygon_nums, pr_polygons_list):
+def match_dont_care_objects(gt_polygons_list, gt_dont_care_polygon_nums,
+                            pr_polygons_list):
     """ Matches ignored objects. """
 
     pr_dont_care_polygon_nums = []
@@ -249,8 +264,8 @@ def match_dont_care_objects(gt_polygons_list, gt_dont_care_polygon_nums, pr_poly
     if gt_dont_care_polygon_nums:
         for pr_polygon_idx, pr_polygon in enumerate(pr_polygons_list):
             for dont_care_polygon_num in gt_dont_care_polygon_nums:
-                intersected_area = get_intersection(gt_polygons_list[dont_care_polygon_num],
-                                                    pr_polygon)
+                intersected_area = get_intersection(
+                    gt_polygons_list[dont_care_polygon_num], pr_polygon)
                 pd_dimensions = pr_polygon.area()
                 precision = 0 if pd_dimensions == 0 else intersected_area / pd_dimensions
                 if precision > AREA_PRECISION_CONSTRAINT:
@@ -260,8 +275,8 @@ def match_dont_care_objects(gt_polygons_list, gt_dont_care_polygon_nums, pr_poly
     return pr_dont_care_polygon_nums
 
 
-def match(gt_polygons_list, gt_transcriptions, gt_dont_care_polygon_nums, pr_polygons_list,
-          pr_transcriptions, pr_dont_care_polygon_nums):
+def match(gt_polygons_list, gt_transcriptions, gt_dont_care_polygon_nums,
+          pr_polygons_list, pr_transcriptions, pr_dont_care_polygon_nums):
     """ Matches all objects. """
 
     pr_matched_nums = []
@@ -274,7 +289,8 @@ def match(gt_polygons_list, gt_transcriptions, gt_dont_care_polygon_nums, pr_pol
     pr_rect_mat = np.zeros(len(pr_polygons_list), np.int8)
     for gt_idx, gt_polygon in enumerate(gt_polygons_list):
         for pr_idx, pr_polygon in enumerate(pr_polygons_list):
-            iou_mat[gt_idx, pr_idx] = get_intersection_over_union(gt_polygon, pr_polygon)
+            iou_mat[gt_idx, pr_idx] = get_intersection_over_union(
+                gt_polygon, pr_polygon)
 
     for gt_idx, _ in enumerate(gt_polygons_list):
         for pr_idx, _ in enumerate(pr_polygons_list):
@@ -285,21 +301,27 @@ def match(gt_polygons_list, gt_transcriptions, gt_dont_care_polygon_nums, pr_pol
                     gt_rect_mat[gt_idx] = 1
                     pr_rect_mat[pr_idx] = 1
                     if gt_transcriptions is not None and pr_transcriptions is not None:
-                        if gt_transcriptions[gt_idx].lower() == pr_transcriptions[pr_idx].lower():
+                        if gt_transcriptions[gt_idx].lower(
+                        ) == pr_transcriptions[pr_idx].lower():
                             pr_matched_nums.append(pr_idx)
                         else:
-                            print(gt_transcriptions[gt_idx], pr_transcriptions[pr_idx])
+                            print(gt_transcriptions[gt_idx],
+                                  pr_transcriptions[pr_idx])
                             pr_matched_but_not_recognized.append(pr_idx)
                     else:
                         pr_matched_nums.append(pr_idx)
                         gt_matched_nums.append(gt_idx)
 
-
     return pr_matched_nums, pr_matched_but_not_recognized, gt_matched_nums
 
 
-def text_eval(pr_annotations, gt_annotations, images=None, show_recall_graph=False, imshow_delay=1,
-                                    confidence_threshold=CONFIDENCE_THRESHOLD, use_transcriptions=False):
+def text_eval(pr_annotations,
+              gt_annotations,
+              images=None,
+              show_recall_graph=False,
+              imshow_delay=1,
+              confidence_threshold=CONFIDENCE_THRESHOLD,
+              use_transcriptions=False):
     """ Annotation format:
         {"image_path": [
                             {"points": [x1,y1,x2,y2,x3,y3,x4,y4],
@@ -337,10 +359,9 @@ def text_eval(pr_annotations, gt_annotations, images=None, show_recall_graph=Fal
         pr_matched_nums = []
         pr_matched_but_not_recognized = []
         if gt_polygons_list and pr_polygons_list:
-            pr_matched_nums, pr_matched_but_not_recognized, gt_matched_nums = match(gt_polygons_list, gt_transcriptions,
-                                    gt_dont_care_polygon_nums,  pr_polygons_list, pr_transcriptions,
-                                    pr_dont_care_polygon_nums)
-
+            pr_matched_nums, pr_matched_but_not_recognized, gt_matched_nums = match(
+                gt_polygons_list, gt_transcriptions, gt_dont_care_polygon_nums,
+                pr_polygons_list, pr_transcriptions, pr_dont_care_polygon_nums)
             matched_sum += len(pr_matched_nums)
 
             for pr_num in range(len(pr_polygons_list)):
@@ -350,33 +371,41 @@ def text_eval(pr_annotations, gt_annotations, images=None, show_recall_graph=Fal
                     arr_global_confidences.append(pr_confidences_list[pr_num])
                     arr_global_matches.append(matched)
 
-        num_global_care_gt += len(gt_polygons_list) - len(gt_dont_care_polygon_nums)
-        num_global_care_pr += len(pr_polygons_list) - len(pr_dont_care_polygon_nums)
+        num_global_care_gt += len(gt_polygons_list) - len(
+            gt_dont_care_polygon_nums)
+        num_global_care_pr += len(pr_polygons_list) - len(
+            pr_dont_care_polygon_nums)
 
         if images is not None:
-            image = '/home/kotik/dataset/text/'+images[frame_id]['file_name']
             image = cv2.imread(image)
-            draw_gt_polygons(image, gt_polygons_list, gt_dont_care_polygon_nums)
-            draw_pr_polygons(image, pr_polygons_list, pr_dont_care_polygon_nums,
-                             pr_matched_nums, pr_confidences_list)
+            draw_gt_polygons(image, gt_polygons_list,
+                             gt_dont_care_polygon_nums)
+            draw_pr_polygons(image, pr_polygons_list,
+                             pr_dont_care_polygon_nums, pr_matched_nums,
+                             pr_confidences_list)
             if use_transcriptions:
-                draw_pr_polygons(image, pr_polygons_list, pr_dont_care_polygon_nums,
-                                 pr_matched_but_not_recognized, pr_confidences_list, pr_transcriptions)
+                draw_pr_polygons(image, pr_polygons_list,
+                                 pr_dont_care_polygon_nums,
+                                 pr_matched_but_not_recognized,
+                                 pr_confidences_list, pr_transcriptions)
             image = cv2.resize(image, (640, 480))
             cv2.imshow('result', image)
-            k = cv2.waitKey(imshow_delay*0)
+            k = cv2.waitKey(imshow_delay * 0)
             if k == 27:
                 return -1, -1, -1
 
-        if show_recall_graph: # draw graphs with normalized recall of different size objects
+        if show_recall_graph:  # draw graphs with normalized recall of different size objects
             for point_idx, polygon in enumerate(gt_polygons_list):
-                width = max(np.abs(int(polygon[0][2][0]) - int(polygon[0][1][0])),
-                            np.abs(int(polygon[0][1][0]) - int(polygon[0][0][0])))
+                width = max(
+                    np.abs(int(polygon[0][2][0]) - int(polygon[0][1][0])),
+                    np.abs(int(polygon[0][1][0]) - int(polygon[0][0][0])))
                 if width < 600:
                     all_width.append(width)
                     all_areas.append(polygon.area())
-                    if point_idx in gt_matched_nums and len(pr_matched_nums)>0:
-                        pr_point_idx = pr_matched_nums[gt_matched_nums.index(point_idx)]
+                    if point_idx in gt_matched_nums and len(
+                            pr_matched_nums) > 0:
+                        pr_point_idx = pr_matched_nums[gt_matched_nums.index(
+                            point_idx)]
                         confidence = pr_confidences_list[pr_point_idx]
                         if confidence > CONFIDENCE_THRESHOLD:
                             detected_areas.append(polygon.area())
@@ -386,24 +415,33 @@ def text_eval(pr_annotations, gt_annotations, images=None, show_recall_graph=Fal
         bins = 5
         detected_width.append(np.max(all_width))
         borders = plt.hist(all_width, bins=bins, color='white')[1]
-        bar_X = [(borders[i] + borders[i + 1]) / 2 for i in range(len(borders) - 1)]
-        bar_Y = plt.hist(detected_width, bins=bins, color='white')[0] / plt.hist(all_width, bins=bins, color='white')[0] * 100
+        bar_X = [(borders[i] + borders[i + 1]) / 2
+                 for i in range(len(borders) - 1)]
+        bar_Y = plt.hist(detected_width, bins=bins, color='white')[0] / \
+                plt.hist(all_width, bins=bins, color='white')[0] * 100
         plt.bar(bar_X, bar_Y, width=80, color='orange')
         for i in range(bins):
-            plt.text(bar_X[i], bar_Y[i], "{0:.1f}%".format(bar_Y[i]), ha='center', va='bottom', rotation=0)
+            plt.text(
+                bar_X[i],
+                bar_Y[i],
+                "{0:.1f}%".format(bar_Y[i]),
+                ha='center',
+                va='bottom',
+                rotation=0)
         plt.ylim([60, 101])
         plt.xlabel("Width of the instance")
         plt.ylabel("The percentage of detected instance")
         plt.title("Recall")
         plt.show()
 
-    method_recall = 0 if num_global_care_gt == 0 else float(matched_sum) / num_global_care_gt
-    method_precision = 0 if num_global_care_pr == 0 else float(matched_sum) / num_global_care_pr
+    method_recall = 0 if num_global_care_gt == 0 else float(
+        matched_sum) / num_global_care_gt
+    method_precision = 0 if num_global_care_pr == 0 else float(
+        matched_sum) / num_global_care_pr
     denominator = method_precision + method_recall
     method_hmean = 0 if denominator == 0 else 2.0 * method_precision * method_recall / denominator
 
-    average_precision = compute_ap(arr_global_confidences, arr_global_matches, num_global_care_gt)
+    average_precision = compute_ap(arr_global_confidences, arr_global_matches,
+                                   num_global_care_gt)
 
     return method_recall, method_precision, method_hmean, average_precision
-
-

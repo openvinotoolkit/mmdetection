@@ -2,23 +2,29 @@
     Common routines for models in PyTorch.
 """
 
-__all__ = ['round_channels', 'Identity', 'Swish', 'HSigmoid', 'HSwish', 'get_activation_layer', 'conv1x1', 'conv3x3',
-           'depthwise_conv3x3', 'ConvBlock', 'conv1x1_block', 'conv3x3_block', 'conv7x7_block', 'dwconv_block',
-           'dwconv3x3_block', 'dwconv5x5_block', 'dwsconv3x3_block', 'PreConvBlock', 'pre_conv1x1_block',
-           'pre_conv3x3_block', 'DeconvBlock', 'NormActivation', 'InterpolationBlock', 'ChannelShuffle',
-           'ChannelShuffle2', 'SEBlock', 'DucBlock', 'IBN', 'DualPathSequential', 'Concurrent', 'SequentialConcurrent',
-           'ParametricSequential', 'ParametricConcurrent', 'Hourglass', 'SesquialteralHourglass',
-           'MultiOutputSequential', 'ParallelConcurent', 'Flatten', 'HeatmapMaxDetBlock']
+__all__ = [
+    'round_channels', 'Identity', 'Swish', 'HSigmoid', 'HSwish',
+    'get_activation_layer', 'conv1x1', 'conv3x3', 'depthwise_conv3x3',
+    'ConvBlock', 'conv1x1_block', 'conv3x3_block', 'conv7x7_block',
+    'dwconv_block', 'dwconv3x3_block', 'dwconv5x5_block', 'dwsconv3x3_block',
+    'PreConvBlock', 'pre_conv1x1_block', 'pre_conv3x3_block', 'DeconvBlock',
+    'NormActivation', 'InterpolationBlock', 'ChannelShuffle',
+    'ChannelShuffle2', 'SEBlock', 'DucBlock', 'IBN', 'DualPathSequential',
+    'Concurrent', 'SequentialConcurrent', 'ParametricSequential',
+    'ParametricConcurrent', 'Hourglass', 'SesquialteralHourglass',
+    'MultiOutputSequential', 'ParallelConcurent', 'Flatten',
+    'HeatmapMaxDetBlock'
+]
 
 import math
 from inspect import isfunction
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 
-def round_channels(channels,
-                   divisor=8):
+def round_channels(channels, divisor=8):
     """
     Round weighted channel number (make divisible operation).
 
@@ -34,7 +40,8 @@ def round_channels(channels,
     int
         Weighted number of channels.
     """
-    rounded_channels = max(int(channels + divisor / 2.0) // divisor * divisor, divisor)
+    rounded_channels = max(
+        int(channels + divisor / 2.0) // divisor * divisor, divisor)
     if float(rounded_channels) < 0.9 * channels:
         rounded_channels += divisor
     return rounded_channels
@@ -44,6 +51,7 @@ class Identity(nn.Module):
     """
     Identity block.
     """
+
     def __init__(self):
         super(Identity, self).__init__()
 
@@ -55,6 +63,7 @@ class Swish(nn.Module):
     """
     Swish activation function from 'Searching for Activation Functions,' https://arxiv.org/abs/1710.05941.
     """
+
     def forward(self, x):
         return x * torch.sigmoid(x)
 
@@ -64,6 +73,7 @@ class HSigmoid(nn.Module):
     Approximated sigmoid function, so-called hard-version of sigmoid from 'Searching for MobileNetV3,'
     https://arxiv.org/abs/1905.02244.
     """
+
     def forward(self, x):
         return F.relu6(x + 3.0, inplace=True) / 6.0
 
@@ -77,6 +87,7 @@ class HSwish(nn.Module):
     inplace : bool
         Whether to use inplace version of the module.
     """
+
     def __init__(self, inplace=False):
         super(HSwish, self).__init__()
         self.inplace = inplace
@@ -124,11 +135,7 @@ def get_activation_layer(activation):
         return activation
 
 
-def conv1x1(in_channels,
-            out_channels,
-            stride=1,
-            groups=1,
-            bias=False):
+def conv1x1(in_channels, out_channels, stride=1, groups=1, bias=False):
     """
     Convolution 1x1 layer.
 
@@ -190,8 +197,7 @@ def conv3x3(in_channels,
         bias=bias)
 
 
-def depthwise_conv3x3(channels,
-                      stride):
+def depthwise_conv3x3(channels, stride):
     """
     Depthwise convolution 3x3 layer.
 
@@ -241,6 +247,7 @@ class ConvBlock(nn.Module):
     activation : function or str or None, default nn.ReLU(inplace=True)
         Activation function or name of activation function.
     """
+
     def __init__(self,
                  in_channels,
                  out_channels,
@@ -256,7 +263,8 @@ class ConvBlock(nn.Module):
         super(ConvBlock, self).__init__()
         self.activate = (activation is not None)
         self.use_bn = use_bn
-        self.use_pad = (isinstance(padding, (list, tuple)) and (len(padding) == 4))
+        self.use_pad = (
+            isinstance(padding, (list, tuple)) and (len(padding) == 4))
 
         if self.use_pad:
             self.pad = nn.ZeroPad2d(padding=padding)
@@ -271,9 +279,7 @@ class ConvBlock(nn.Module):
             groups=groups,
             bias=bias)
         if self.use_bn:
-            self.bn = nn.BatchNorm2d(
-                num_features=out_channels,
-                eps=bn_eps)
+            self.bn = nn.BatchNorm2d(num_features=out_channels, eps=bn_eps)
         if self.activate:
             self.activ = get_activation_layer(activation)
 
@@ -631,6 +637,7 @@ class DwsConvBlock(nn.Module):
     pw_activation : function or str or None, default nn.ReLU(inplace=True)
         Activation function after the pointwise convolution block.
     """
+
     def __init__(self,
                  in_channels,
                  out_channels,
@@ -746,6 +753,7 @@ class PreConvBlock(nn.Module):
     activate : bool, default True
         Whether activate the convolution block.
     """
+
     def __init__(self,
                  in_channels,
                  out_channels,
@@ -907,6 +915,7 @@ class DeconvBlock(nn.Module):
     activation : function or str or None, default nn.ReLU(inplace=True)
         Activation function or name of activation function.
     """
+
     def __init__(self,
                  in_channels,
                  out_channels,
@@ -939,9 +948,7 @@ class DeconvBlock(nn.Module):
             groups=groups,
             bias=bias)
         if self.use_bn:
-            self.bn = nn.BatchNorm2d(
-                num_features=out_channels,
-                eps=bn_eps)
+            self.bn = nn.BatchNorm2d(num_features=out_channels, eps=bn_eps)
         if self.activate:
             self.activ = get_activation_layer(activation)
 
@@ -967,13 +974,10 @@ class NormActivation(nn.Module):
     bn_eps : float, default 1e-5
         Small float added to variance in Batch norm.
     """
-    def __init__(self,
-                 in_channels,
-                 bn_eps=1e-5):
+
+    def __init__(self, in_channels, bn_eps=1e-5):
         super(NormActivation, self).__init__()
-        self.bn = nn.BatchNorm2d(
-            num_features=in_channels,
-            eps=bn_eps)
+        self.bn = nn.BatchNorm2d(num_features=in_channels, eps=bn_eps)
         self.activ = nn.ReLU(inplace=True)
 
     def forward(self, x):
@@ -995,10 +999,8 @@ class InterpolationBlock(nn.Module):
     align_corners : bool, default True
         Whether to align the corner pixels of the input and output tensors.
     """
-    def __init__(self,
-                 scale_factor,
-                 mode="bilinear",
-                 align_corners=True):
+
+    def __init__(self, scale_factor, mode="bilinear", align_corners=True):
         super(InterpolationBlock, self).__init__()
         self.scale_factor = scale_factor
         self.mode = mode
@@ -1029,8 +1031,7 @@ class InterpolationBlock(nn.Module):
         return num_flops, num_macs
 
 
-def channel_shuffle(x,
-                    groups):
+def channel_shuffle(x, groups):
     """
     Channel shuffle operation from 'ShuffleNet: An Extremely Efficient Convolutional Neural Network for Mobile Devices,'
     https://arxiv.org/abs/1707.01083.
@@ -1067,9 +1068,8 @@ class ChannelShuffle(nn.Module):
     groups : int
         Number of groups.
     """
-    def __init__(self,
-                 channels,
-                 groups):
+
+    def __init__(self, channels, groups):
         super(ChannelShuffle, self).__init__()
         # assert (channels % groups == 0)
         if channels % groups != 0:
@@ -1080,8 +1080,7 @@ class ChannelShuffle(nn.Module):
         return channel_shuffle(x, self.groups)
 
 
-def channel_shuffle2(x,
-                     groups):
+def channel_shuffle2(x, groups):
     """
     Channel shuffle operation from 'ShuffleNet: An Extremely Efficient Convolutional Neural Network for Mobile Devices,'
     https://arxiv.org/abs/1707.01083. The alternative version.
@@ -1119,9 +1118,8 @@ class ChannelShuffle2(nn.Module):
     groups : int
         Number of groups.
     """
-    def __init__(self,
-                 channels,
-                 groups):
+
+    def __init__(self, channels, groups):
         super(ChannelShuffle2, self).__init__()
         # assert (channels % groups == 0)
         if channels % groups != 0:
@@ -1151,6 +1149,7 @@ class SEBlock(nn.Module):
     out_activation : function, or str, or nn.Module, default 'sigmoid'
         Activation function after the last convolution.
     """
+
     def __init__(self,
                  channels,
                  reduction=16,
@@ -1160,28 +1159,23 @@ class SEBlock(nn.Module):
                  out_activation=(lambda: nn.Sigmoid())):
         super(SEBlock, self).__init__()
         self.use_conv = use_conv
-        mid_channels = channels // reduction if not round_mid else round_channels(float(channels) / reduction)
+        mid_channels = channels // reduction if not round_mid else round_channels(
+            float(channels) / reduction)
 
         self.pool = nn.AdaptiveAvgPool2d(output_size=1)
         if use_conv:
             self.conv1 = conv1x1(
-                in_channels=channels,
-                out_channels=mid_channels,
-                bias=True)
+                in_channels=channels, out_channels=mid_channels, bias=True)
         else:
             self.fc1 = nn.Linear(
-                in_features=channels,
-                out_features=mid_channels)
+                in_features=channels, out_features=mid_channels)
         self.activ = get_activation_layer(mid_activation)
         if use_conv:
             self.conv2 = conv1x1(
-                in_channels=mid_channels,
-                out_channels=channels,
-                bias=True)
+                in_channels=mid_channels, out_channels=channels, bias=True)
         else:
             self.fc2 = nn.Linear(
-                in_features=mid_channels,
-                out_features=channels)
+                in_features=mid_channels, out_features=channels)
         self.sigmoid = get_activation_layer(out_activation)
 
     def forward(self, x):
@@ -1212,16 +1206,13 @@ class DucBlock(nn.Module):
     scale_factor : int
         Multiplier for spatial size.
     """
-    def __init__(self,
-                 in_channels,
-                 out_channels,
-                 scale_factor):
+
+    def __init__(self, in_channels, out_channels, scale_factor):
         super(DucBlock, self).__init__()
         mid_channels = (scale_factor * scale_factor) * out_channels
 
         self.conv = conv3x3_block(
-            in_channels=in_channels,
-            out_channels=mid_channels)
+            in_channels=in_channels, out_channels=mid_channels)
         self.pix_shuffle = nn.PixelShuffle(upscale_factor=scale_factor)
 
     def forward(self, x):
@@ -1244,10 +1235,8 @@ class IBN(nn.Module):
     inst_first : bool, default True
         Whether instance normalization be on the first part of channels.
     """
-    def __init__(self,
-                 channels,
-                 first_fraction=0.5,
-                 inst_first=True):
+
+    def __init__(self, channels, first_fraction=0.5, inst_first=True):
         super(IBN, self).__init__()
         self.inst_first = inst_first
         h1_channels = int(math.floor(channels * first_fraction))
@@ -1256,17 +1245,16 @@ class IBN(nn.Module):
 
         if self.inst_first:
             self.inst_norm = nn.InstanceNorm2d(
-                num_features=h1_channels,
-                affine=True)
+                num_features=h1_channels, affine=True)
             self.batch_norm = nn.BatchNorm2d(num_features=h2_channels)
         else:
             self.batch_norm = nn.BatchNorm2d(num_features=h1_channels)
             self.inst_norm = nn.InstanceNorm2d(
-                num_features=h2_channels,
-                affine=True)
+                num_features=h2_channels, affine=True)
 
     def forward(self, x):
-        x1, x2 = torch.split(x, split_size_or_sections=self.split_sections, dim=1)
+        x1, x2 = torch.split(
+            x, split_size_or_sections=self.split_sections, dim=1)
         if self.inst_first:
             x1 = self.inst_norm(x1.contiguous())
             x2 = self.batch_norm(x2.contiguous())
@@ -1295,12 +1283,14 @@ class DualPathSequential(nn.Sequential):
     dual_path_scheme_ordinal : function
         Scheme of dual path response for an ordinal module.
     """
+
     def __init__(self,
                  return_two=True,
                  first_ordinals=0,
                  last_ordinals=0,
                  dual_path_scheme=(lambda module, x1, x2: module(x1, x2)),
-                 dual_path_scheme_ordinal=(lambda module, x1, x2: (module(x1), x2))):
+                 dual_path_scheme_ordinal=(lambda module, x1, x2:
+                                           (module(x1), x2))):
         super(DualPathSequential, self).__init__()
         self.return_two = return_two
         self.first_ordinals = first_ordinals
@@ -1332,9 +1322,8 @@ class Concurrent(nn.Sequential):
     stack : bool, default False
         Whether to concatenate tensors along a new dimension.
     """
-    def __init__(self,
-                 axis=1,
-                 stack=False):
+
+    def __init__(self, axis=1, stack=False):
         super(Concurrent, self).__init__()
         self.axis = axis
         self.stack = stack
@@ -1364,10 +1353,8 @@ class SequentialConcurrent(nn.Sequential):
     cat_input : bool, default True
         Whether to concatenate input tensor.
     """
-    def __init__(self,
-                 axis=1,
-                 stack=False,
-                 cat_input=True):
+
+    def __init__(self, axis=1, stack=False, cat_input=True):
         super(SequentialConcurrent, self).__init__()
         self.axis = axis
         self.stack = stack
@@ -1390,6 +1377,7 @@ class ParametricSequential(nn.Sequential):
     A sequential container for modules with parameters.
     Modules will be executed in the order they are added.
     """
+
     def __init__(self, *args):
         super(ParametricSequential, self).__init__(*args)
 
@@ -1408,6 +1396,7 @@ class ParametricConcurrent(nn.Sequential):
     axis : int, default 1
         The axis on which to concatenate the outputs.
     """
+
     def __init__(self, axis=1):
         super(ParametricConcurrent, self).__init__()
         self.axis = axis
@@ -1437,6 +1426,7 @@ class Hourglass(nn.Module):
     return_first_skip : bool, default False
         Whether return the first skip connection output. Used in ResAttNet.
     """
+
     def __init__(self,
                  down_seq,
                  up_seq,
@@ -1500,6 +1490,7 @@ class SesquialteralHourglass(nn.Module):
     merge_type : str, default 'con'
         Type of concatenation of up and skip outputs.
     """
+
     def __init__(self,
                  down1_seq,
                  skip1_seq,
@@ -1568,10 +1559,8 @@ class MultiOutputSequential(nn.Sequential):
     return_last : bool, default True
         Whether to forcibly return last value.
     """
-    def __init__(self,
-                 multi_output=True,
-                 dual_output=False,
-                 return_last=True):
+
+    def __init__(self, multi_output=True, dual_output=False, return_last=True):
         super(MultiOutputSequential, self).__init__()
         self.multi_output = multi_output
         self.dual_output = dual_output
@@ -1600,6 +1589,7 @@ class ParallelConcurent(nn.Sequential):
     A sequential container with multiple inputs and multiple outputs.
     Modules will be executed in the order they are added.
     """
+
     def __init__(self):
         super(ParallelConcurent, self).__init__()
 
@@ -1623,6 +1613,7 @@ class HeatmapMaxDetBlock(nn.Module):
     """
     Heatmap maximum detector block (for human pose estimation task).
     """
+
     def __init__(self):
         super(HeatmapMaxDetBlock, self).__init__()
 
@@ -1644,8 +1635,10 @@ class HeatmapMaxDetBlock(nn.Module):
                 px = int(pts[b, k, 0])
                 py = int(pts[b, k, 1])
                 if (0 < px < in_size[1] - 1) and (0 < py < in_size[0] - 1):
-                    pts[b, k, 0] += (hm[py, px + 1] - hm[py, px - 1]).sign() * 0.25
-                    pts[b, k, 1] += (hm[py + 1, px] - hm[py - 1, px]).sign() * 0.25
+                    pts[b, k,
+                        0] += (hm[py, px + 1] - hm[py, px - 1]).sign() * 0.25
+                    pts[b, k,
+                        1] += (hm[py + 1, px] - hm[py - 1, px]).sign() * 0.25
         return pts
 
     @staticmethod

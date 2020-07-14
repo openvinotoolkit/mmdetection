@@ -14,7 +14,8 @@ RUN apt-get update && apt-get install -y git ninja-build libglib2.0-0 libsm6 lib
 
 # Install mmdetection
 RUN conda clean --all
-RUN git clone --recursive --branch ote https://github.com/opencv/mmdetection.git /mmdetection
+ARG MMDET_BRANCH=ote
+RUN git clone --recursive --branch $MMDET_BRANCH https://github.com/opencv/mmdetection.git /mmdetection
 WORKDIR /mmdetection
 ENV FORCE_CUDA="1"
 RUN pip install "git+https://github.com/open-mmlab/cocoapi.git#subdirectory=pycocotools"
@@ -27,7 +28,8 @@ RUN apt update && \
         cpio \
         unzip \
         wget \
-        curl
+        curl && \
+     rm -rf /var/lib/apt/lists/*
 
 ARG OPENVINO_LINK=http://registrationcenter-download.intel.com/akdlm/irc_nas/16803/l_openvino_toolkit_p_2020.4.287.tgz
 RUN mkdir -p /tmp/openvino_installer && cd /tmp/openvino_installer && \

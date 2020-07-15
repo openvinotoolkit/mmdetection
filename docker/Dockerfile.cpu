@@ -18,15 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
      rm -rf /var/lib/apt/lists/*
 
 # Install PyTorch
-RUN curl -o ~/miniconda.sh -LO  https://repo.continuum.io/miniconda/Miniconda3-py37_4.8.3-Linux-x86_64.sh  && \
-     chmod +x ~/miniconda.sh && \
-     ~/miniconda.sh -b -p /opt/conda && \
-     rm ~/miniconda.sh && \
-     /opt/conda/bin/conda install conda-build && \
-     /opt/conda/bin/conda create -y --name pytorch-py37 python=3.7 numpy pyyaml scipy ipython mkl cython && \
-     /opt/conda/bin/conda clean -ya
-ENV PATH /opt/conda/envs/pytorch-py37/bin:/opt/conda/bin:$PATH
-RUN conda install --name pytorch-py37 pytorch==1.4.0 torchvision cpuonly -c pytorch && /opt/conda/bin/conda clean -ya
+RUN pip install torch==1.4.0+cpu torchvision==0.5.0+cpu -f https://download.pytorch.org/whl/torch_stable.html
 
 # Install mmdetection
 ARG MMDET_BRANCH=develop

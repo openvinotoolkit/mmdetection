@@ -4,7 +4,7 @@ from mmcv.parallel.data_container import DataContainer
 from mmcv.parallel import MMDataParallel
 
 
-def scatter_cpu(inputs, target_gpus, dim=0):
+def scatter_cpu(inputs):
     """Scatter inputs to cpu.
     :type:`~mmcv.parallel.DataContainer`.
     """
@@ -22,7 +22,7 @@ def scatter_cpu(inputs, target_gpus, dim=0):
         if isinstance(obj, dict) and len(obj) > 0:
             out = list(map(type(obj), zip(*map(scatter_map, obj.items()))))
             return out
-        return [obj for targets in target_gpus]
+        return [obj]
 
     # After scatter_map is called, a scatter_map cell will exist. This cell
     # has a reference to the actual function scatter_map, which has references
@@ -35,10 +35,10 @@ def scatter_cpu(inputs, target_gpus, dim=0):
         scatter_map = None
 
 
-def scatter_kwargs(inputs, kwargs, target_gpus, dim=0):
+def scatter_kwargs(inputs, kwargs):
     """Scatter with support for kwargs dictionary"""
-    inputs = scatter_cpu(inputs, target_gpus, dim) if inputs else []
-    kwargs = scatter_cpu(kwargs, target_gpus, dim) if kwargs else []
+    inputs = scatter_cpu(inputs) if inputs else []
+    kwargs = scatter_cpu(kwargs) if kwargs else []
     if len(inputs) < len(kwargs):
         inputs.extend([() for _ in range(len(kwargs) - len(inputs))])
     elif len(kwargs) < len(inputs):
@@ -49,20 +49,21 @@ def scatter_kwargs(inputs, kwargs, target_gpus, dim=0):
 
 
 class MMDataCPU(MMDataParallel):
+    """Implementation of MMDataParallel to use CPU for training"""
 
-    def scatter(self, inputs, kwargs, device_ids):
-        return scatter_kwargs(inputs, kwargs, device_ids, dim=0)
+    def scatter(self, inputs, kwargs):
+        return scatter_kwargs(inputs, kwargs)
 
     def train_step(self, *inputs, **kwargs):
-        inputs, kwargs = self.scatter(inputs, kwargs, [0])
+        inputs, kwargs = self.scatter(inputs, kwargs)
         return self.module.train_step(*inputs[0], **kwargs[0])
 
     def val_step(self, *inputs, **kwargs):
-        inputs, kwargs = self.scatter(inputs, kwargs, [0])
+        inputs, kwargs = self.scatter(inputs, kwargs)
         return self.module.val_step(*inputs[0], **kwargs[0])
 
     def forward(self, *inputs, **kwargs):
-        inputs, kwargs = self.scatter(inputs, kwargs, [0])
+        inputs, kwargs = self.scatter(inputs, kwargs)
         return self.module(*inputs[0], **kwargs[0])
 
 

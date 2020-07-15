@@ -9,7 +9,7 @@ from mmcv.runner import (DistSamplerSeedHook, EpochBasedRunner, OptimizerHook,
 from mmdet.core import DistEvalHook, EvalHook, Fp16OptimizerHook
 from mmdet.datasets import build_dataloader, build_dataset
 from mmdet.utils import get_root_logger
-from mmdet.models.trainer import MMDataCPU
+from mmdet.parallel import MMDataCPU
 
 
 def set_random_seed(seed, deterministic=False):

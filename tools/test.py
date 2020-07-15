@@ -12,7 +12,7 @@ from mmdet.apis import multi_gpu_test, single_gpu_test
 from mmdet.core import wrap_fp16_model
 from mmdet.datasets import build_dataloader, build_dataset
 from mmdet.models import build_detector
-from mmdet.models.trainer import MMDataCPU
+from mmdet.parallel import MMDataCPU
 
 
 def parse_args():

@@ -47,6 +47,7 @@ def main():
                 format(model.__class__.__name__))
 
     flops, params = get_model_complexity_info(model, input_shape)
+    flops = f'{2 * float(flops.split(" ")[0])} GFLOPs'
     split_line = '=' * 30
     print(f'{split_line}\nInput shape: {input_shape}\n'
           f'Flops: {flops}\nParams: {params}\n{split_line}')
@@ -57,7 +58,7 @@ def main():
     if args.out:
         out = list()
         out.append({'key': 'size', 'display_name': 'Size', 'value': float(params.split(' ')[0]), 'unit': 'Mp'})
-        out.append({'key': 'complexity', 'display_name': 'Complexity', 'value': 2 * float(flops.split(' ')[0]),
+        out.append({'key': 'complexity', 'display_name': 'Complexity', 'value': float(flops.split(' ')[0]),
                     'unit': 'GFLOPs'})
         with open(args.out, 'w') as write_file:
             json.dump(out, write_file, indent=4)

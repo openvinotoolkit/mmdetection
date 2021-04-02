@@ -62,16 +62,17 @@ def parse_args():
         '--tmpdir',
         help='tmp directory used for collecting results from multiple '
              'workers, available when gpu-collect is not specified')
-    parser.add_argument(
-        '--cfg-options',
-        nargs='+',
-        action=DictAction,
-        help='override some settings in the used config, the key-value pair '
-        'in xxx=yyy format will be merged into config file. If the value to '
-        'be overwritten is a list, it should be like key="[a,b]" or key=a,b '
-        'It also allows nested list/tuple values, e.g. key="[(a,b),(c,d)]" '
-        'Note that the quotation marks are necessary and that no white space '
-        'is allowed.')
+    # Use --update_config instead.
+    # parser.add_argument(
+    #     '--cfg-options',
+    #     nargs='+',
+    #     action=DictAction,
+    #     help='override some settings in the used config, the key-value pair '
+    #     'in xxx=yyy format will be merged into config file. If the value to '
+    #     'be overwritten is a list, it should be like key="[a,b]" or key=a,b '
+    #     'It also allows nested list/tuple values, e.g. key="[(a,b),(c,d)]" '
+    #     'Note that the quotation marks are necessary and that no white space '
+    #     'is allowed.')
     parser.add_argument(
         '--options',
         nargs='+',
@@ -91,6 +92,9 @@ def parse_args():
         default='none',
         help='job launcher')
     parser.add_argument('--local_rank', type=int, default=0)
+    parser.add_argument(
+        '--update_config', nargs='+', action=ExtendedDictAction,
+        help='Update configuration file by parameters specified here.')
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)
@@ -121,8 +125,10 @@ def main():
         raise ValueError('The output file must be a pkl file.')
 
     cfg = Config.fromfile(args.config)
-    if args.cfg_options is not None:
-        cfg.merge_from_dict(args.cfg_options)
+    # if args.cfg_options is not None:
+    #     cfg.merge_from_dict(args.cfg_options)
+    if args.update_config:
+        cfg.merge_from_dict(args.update_config)
     # import modules from string list.
     if cfg.get('custom_imports', None):
         from mmcv.utils import import_modules_from_strings

@@ -20,6 +20,7 @@ class TwoStageDetector(BaseDetector):
                  neck=None,
                  rpn_head=None,
                  roi_head=None,
+                 roi_masking=False,
                  train_cfg=None,
                  test_cfg=None,
                  pretrained=None):
@@ -147,7 +148,8 @@ class TwoStageDetector(BaseDetector):
                 gt_bboxes,
                 gt_labels=None,
                 gt_bboxes_ignore=gt_bboxes_ignore,
-                proposal_cfg=proposal_cfg)
+                proposal_cfg=proposal_cfg,
+                gt_masks=gt_masks)
             losses.update(rpn_losses)
         else:
             proposal_list = proposals

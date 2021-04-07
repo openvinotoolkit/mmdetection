@@ -61,6 +61,30 @@ def binary_cross_entropy(pred,
     return loss
 
 
+def binary_cross_entropy_autobalance(pred,
+                                     label,
+                                     weight=None,
+                                     reduction='mean',
+                                     avg_factor=None,
+                                     class_weight=None):
+    if pred.dim() != label.dim():
+        label, weight = _expand_binary_labels(label, weight, pred.size(-1))
+
+    s = torch.sum(label)
+    pos_weight = (label.numel() - s) / max(1, s)
+
+    # weighted element-wise losses
+    if weight is not None:
+        weight = weight.float()
+    loss = F.binary_cross_entropy_with_logits(
+        pred, label.float(), weight=class_weight, reduction='none', pos_weight=pos_weight)
+    # do the reduction for the weighted loss
+    loss = weight_reduce_loss(
+        loss, weight, reduction=reduction, avg_factor=avg_factor)
+
+    return loss
+
+
 def mask_cross_entropy(pred,
                        target,
                        label,
@@ -84,7 +108,8 @@ class CrossEntropyLoss(nn.Module):
                  use_mask=False,
                  reduction='mean',
                  class_weight=None,
-                 loss_weight=1.0):
+                 loss_weight=1.0,
+                 autobalance=False):
         super(CrossEntropyLoss, self).__init__()
         assert (use_sigmoid is False) or (use_mask is False)
         self.use_sigmoid = use_sigmoid
@@ -94,7 +119,7 @@ class CrossEntropyLoss(nn.Module):
         self.class_weight = class_weight
 
         if self.use_sigmoid:
-            self.cls_criterion = binary_cross_entropy
+            self.cls_criterion = binary_cross_entropy_autobalance if autobalance else binary_cross_entropy
         elif self.use_mask:
             self.cls_criterion = mask_cross_entropy
         else:

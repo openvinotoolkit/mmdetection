@@ -148,7 +148,7 @@ class SPNHead(nn.Module):
 
         mask_loss = sum(self.loss_mask(pred, target)
                         for pred, target in zip(mask_pred, mask_targets))
-        # assert not np.isnan(mask_loss.cpu().detach().numpy())
+        assert not np.isnan(mask_loss.cpu().detach().numpy())
         loss = {'loss_rpn_mask': mask_loss}
         return loss
 
@@ -192,14 +192,15 @@ class SPNHead(nn.Module):
                         xmax = min(xmax, mask_cpu.shape[1] - 1)
                         ymax = min(ymax, mask_cpu.shape[0] - 1)
 
-                        if (xmax - xmin) * (ymax - ymin) > 25 * 25:
-                            boxes.append(torch.tensor(np.array([[xmin, ymin, xmax, ymax, 1.0]]), device=mask_preds[0].device,
-                                                                            dtype=torch.float))
+                        min_side = 2
+                        if xmax - xmin > min_side and ymax - ymin > min_side:
+                            boxes.append(torch.tensor(np.array([[xmin, ymin, xmax, ymax, 1.0]]),
+                                         device=mask_preds[0].device, dtype=torch.float))
                             labels.append(torch.tensor(np.array([[1]])))
                             cv2.rectangle(mask_cpu, (xmin, ymin), (xmax, ymax), 2)
 
                     # cv2.imshow("res", mask_cpu * 120)
-                    # cv2.waitKey(5)
+                    # cv2.waitKey(1000)
 
                 if boxes:
                     boxes = torch.cat(boxes)

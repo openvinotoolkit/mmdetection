@@ -51,13 +51,14 @@ def unclip_contours(contours):
 @HEADS.register_module()
 class SPNHead(nn.Module):
 
-    def __init__(self, in_channels, feat_channels, train_cfg, test_cfg, loss_mask):
+    def __init__(self, in_channels, feat_channels, train_cfg, test_cfg, loss_mask, loss_mask2):
         super(SPNHead, self).__init__()
         self.in_channels = in_channels
         self.feat_channels = feat_channels
         self.train_cfg = train_cfg
         self.test_cfg = test_cfg
         self.loss_mask = build_loss(loss_mask)
+        self.loss_mask2 = build_loss(loss_mask2)
 
         self.prob = nn.Sequential(
             conv3x3_bn_relu(self.in_channels, self.feat_channels, 1),
@@ -74,7 +75,10 @@ class SPNHead(nn.Module):
     def init_weights(self):
         for m in self.modules():
             if isinstance(m, (nn.Conv2d, )):
-                xavier_init(m, distribution='uniform')
+                nn.init.kaiming_normal_(
+                    m.weight, mode='fan_out', nonlinearity='relu')
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
 
     def forward_single(self, feats):
         return tuple([self.prob(feats)])
@@ -96,7 +100,7 @@ class SPNHead(nn.Module):
         losses = self.loss(*loss_inputs)
         assert proposal_cfg is not None
 
-        proposal_list = self.get_bboxes(*outs, cfg=proposal_cfg, loss=losses['loss_rpn_mask'].cpu().detach().numpy())
+        proposal_list = self.get_bboxes(*outs, cfg=proposal_cfg, dice_loss=losses['loss_rpn_mask_2'].cpu().detach().numpy())
         return losses, proposal_list
 
     def simple_test_rpn(self, x, img_metas):
@@ -148,68 +152,84 @@ class SPNHead(nn.Module):
 
         mask_loss = sum(self.loss_mask(pred, target)
                         for pred, target in zip(mask_pred, mask_targets))
+        mask_loss2 = sum(self.loss_mask2(pred, target)
+                         for pred, target in zip(mask_pred, mask_targets))
         assert not np.isnan(mask_loss.cpu().detach().numpy())
-        loss = {'loss_rpn_mask': mask_loss}
+        loss = {'loss_rpn_mask': mask_loss, 'loss_rpn_mask_2': mask_loss2}
         return loss
 
-    def get_bboxes(self, mask_preds, cfg, rescale=False, loss=None):
+    def get_bboxes(self, mask_preds, cfg, rescale=False, dice_loss=None):
+
+        is_training = dice_loss is not None
+
         proposals_list = []
 
         thr = 0.5
 
-        find_proposals = True
-        # if loss is not None:
-        #     val = min(max(loss - 0.1, 0), 1.0)
-        #     if np.random.uniform() < val:
-        #         find_proposals = False
+        max_proposals = 256
+        min_side = 2
 
         for level_idx, level_pred in enumerate(mask_preds):
             for mask_idx_in_batch, mask_in_batch in enumerate(level_pred):
-
                 boxes = []
-                labels = []
 
-                if find_proposals:
-                    pred = torch.nn.functional.sigmoid(mask_in_batch)
-                    pred_cpu = np.squeeze(pred.detach().cpu().numpy())
-                    mask_cpu = (pred_cpu > thr).astype(np.uint8)
+                pred = torch.nn.functional.sigmoid(mask_in_batch)
+                pred_cpu = np.squeeze(pred.detach().cpu().numpy())
+                mask_cpu = (pred_cpu > thr).astype(np.uint8)
+
+                contours = []
+
+                if dice_loss is None or (dice_loss < 0.85 and dice_loss > 0):
+
                     contours, _ = cv2.findContours(mask_cpu, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                    if len(contours) > max_proposals:
+                        contours = sorted(contours, key=lambda x: cv2.contourArea(x), reverse=True)[:max_proposals]
 
-                    contours = [cv2.approxPolyDP(c, 0.001*cv2.arcLength(c, True), True)
-                                for c in contours]
+                    assert len(contours) <= max_proposals
 
                     contours = unclip_contours(contours)
-
-                    mask_cpu = np.zeros_like(mask_cpu)
-                    cv2.drawContours(mask_cpu, contours, -1, 1, -1)
 
                     for c in contours:
                         x, y, w, h = cv2.boundingRect(c)
                         xmin, ymin, xmax, ymax = x, y, x + w, y + h
                         xmin = max(0, xmin)
                         ymin = max(0, ymin)
-
                         xmax = min(xmax, mask_cpu.shape[1] - 1)
                         ymax = min(ymax, mask_cpu.shape[0] - 1)
 
-                        min_side = 2
-                        if xmax - xmin > min_side and ymax - ymin > min_side:
+                        if xmax - xmin >= min_side and ymax - ymin >= min_side:
                             boxes.append(torch.tensor(np.array([[xmin, ymin, xmax, ymax, 1.0]]),
-                                         device=mask_preds[0].device, dtype=torch.float))
-                            labels.append(torch.tensor(np.array([[1]])))
-                            cv2.rectangle(mask_cpu, (xmin, ymin), (xmax, ymax), 2)
+                                        device=mask_preds[0].device, dtype=torch.float))
 
+                    # mask_cpu = np.zeros_like(mask_cpu)
+                    # for bbox in boxes:
+                    #     xmin, ymin, xmax, ymax, _ = bbox.cpu().numpy()[0]
+                    #     cv2.rectangle(mask_cpu, (xmin, ymin), (xmax, ymax), 2)
+
+                    # cv2.drawContours(mask_cpu, contours, -1, 1, -1)
                     # cv2.imshow("res", mask_cpu * 120)
-                    # cv2.waitKey(1000)
+                    # cv2.waitKey(3)
 
-                if boxes:
+                if boxes or is_training:
+                    while is_training and len(boxes) < max_proposals:
+                        xmin = np.random.uniform(0, mask_cpu.shape[1] - min_side - 1)
+                        xmax = np.random.uniform(xmin + min_side, min(xmin + min_side + 25, mask_cpu.shape[1] - 1))
+                        ymin = np.random.uniform(0, mask_cpu.shape[0] - min_side - 1)
+                        ymax = np.random.uniform(ymin + min_side, min(ymin + min_side + 25, mask_cpu.shape[0] - 1))
+                        boxes.append(torch.tensor(np.array([[xmin, ymin, xmax, ymax, 1.0]]), device=mask_preds[0].device, dtype=torch.float))
+
+                    # mask_cpu = np.zeros_like(mask_cpu)
+                    # for bbox in boxes:
+                    #     xmin, ymin, xmax, ymax, _ = bbox.cpu().numpy()[0]
+                    #     cv2.rectangle(mask_cpu, (xmin, ymin), (xmax, ymax), 2)
+
+                    # cv2.drawContours(mask_cpu, contours, -1, 1, -1)
+                    # cv2.imshow("res", mask_cpu * 120)
+                    # cv2.waitKey(3)
+
                     boxes = torch.cat(boxes)
-                    labels = torch.cat(labels)
                 else:
-                    boxes = torch.zeros(
-                        (0, 5), device=mask_preds[0].device, dtype=torch.float)
-                    labels = torch.zeros(
-                        (0, 1), device=mask_preds[0].device, dtype=torch.int)
+                    boxes = torch.zeros((0, 5), device=mask_preds[0].device, dtype=torch.float)
 
                 proposals_list.append(boxes)
 

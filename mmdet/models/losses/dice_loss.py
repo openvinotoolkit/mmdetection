@@ -12,8 +12,9 @@ class DiceLoss(nn.Module):
         self.loss_weight = loss_weight
 
     def forward(self, pred, target):
+        sigmoided = nn.functional.sigmoid(pred)
         assert pred.shape == target.shape
-        I = torch.sum(pred * target)
-        U = torch.sum(pred) + torch.sum(target)
+        I = torch.sum(sigmoided * target)
+        U = torch.sum(sigmoided) + torch.sum(target)
         loss = self.loss_weight * (1 - 2.0 * I / U) if U > 0 else U
         return loss

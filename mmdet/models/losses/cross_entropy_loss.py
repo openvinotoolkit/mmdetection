@@ -71,7 +71,7 @@ def binary_cross_entropy_autobalance(pred,
         label, weight = _expand_binary_labels(label, weight, pred.size(-1))
 
     s = torch.sum(label)
-    pos_weight = (label.numel() - s) / max(1, s)
+    pos_weight = min((label.numel() - s) / max(1, s), torch.tensor(50, device=s.device, dtype=s.dtype))
 
     # weighted element-wise losses
     if weight is not None:

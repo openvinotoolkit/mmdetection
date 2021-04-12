@@ -1,13 +1,12 @@
 import collections
 import copy
+import editdistance
 import logging
+import numpy as np
 import os
 import string
 import subprocess
 import tempfile
-
-import editdistance
-import numpy as np
 from mmcv.utils import print_log
 from pycocotools.cocoeval import COCOeval
 from tqdm import tqdm
@@ -321,6 +320,28 @@ class CocoWithTextDataset(CocoDataset):
             eval_results[metric + '/hmean'] = float(f'{hmean:.3f}')
             eval_results[metric + '/precision'] = float(f'{precision:.3f}')
             eval_results[metric + '/recall'] = float(f'{recall:.3f}')
+
+            # break
+
+            best_hmean = -1
+            best_det_thr = None
+            best_rec_thr = None
+            for det_thr in np.arange(0.05, 1.0, 0.05):
+                for rec_thr in np.arange(0.05, 1.0, 0.05):
+                    filtered_predictions = self._filter_predictions(
+                        predictions, det_thr, rec_thr
+                    )
+                    recall, precision, hmean, _ = text_eval(
+                        filtered_predictions, gt_annotations, score_thr,
+                        show_recall_graph=False,
+                        use_transcriptions=True,
+                        word_spotting=metric.startswith('word_spotting'))
+
+                    if hmean > best_hmean:
+                        best_hmean = hmean
+                        best_det_thr = det_thr
+                        best_rec_thr = rec_thr
+                        print(f'### {best_hmean=} {best_det_thr=} {best_rec_thr=}')
 
         if tmp_dir is not None:
             tmp_dir.cleanup()

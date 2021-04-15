@@ -15,3 +15,4 @@ lxml
 mmpycocotools
 Polygon3==3.0.8
 editdistance
+pyclipper

@@ -282,8 +282,8 @@ def patch_nms_aten_to():
 
 
 def patch_conv_ws():
+    import torch.nn.functional as F
     from mmcv.cnn.bricks.conv_ws import ConvWS2d
-    original_forward = ConvWS2d.forward
 
     def normalize_weights(weight, eps=1e-5):
         c_in = weight.size(0)
@@ -297,10 +297,10 @@ def patch_conv_ws():
         weight = normalize_weights(self.weight, self.eps)
         if torch.onnx.is_in_onnx_export():
             weight = weight.data
-        return conv2d(x, weight, self.bias, self.stride, self.padding,
+        return F.conv2d(x, weight, self.bias, self.stride, self.padding,
                       self.dilation, self.groups)
 
-    ConvWS2d.forward = forward.__get__(ConvWS2d)
+    ConvWS2d.forward = forward
 
 
 def nms_symbolic_with_score_thr(g, bboxes, scores, iou_threshold, score_threshold, max_num, offset):

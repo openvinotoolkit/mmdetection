@@ -40,7 +40,6 @@ from sc_sdk.entities.model import Model, NullModel
 from sc_sdk.entities.shapes.box import Box
 from sc_sdk.entities.resultset import ResultSetEntity, ResultsetPurpose
 
-from sc_sdk.usecases.evaluation.basic_operations import get_nms_filter
 from sc_sdk.usecases.evaluation.metrics_helper import MetricsHelper
 from sc_sdk.usecases.reporting.time_monitor_callback import TimeMonitorCallback
 from sc_sdk.usecases.repos import BinaryRepo
@@ -222,11 +221,6 @@ class MMObjectDetectionTask(ImageDeepLearningTask, IConfigurableParameters, IMod
                                       labels=assigned_label))
             # cv2.imshow('image', image)
             # cv2.waitKey(0)
-
-            # FIXME. What is it done for?
-            if nms_threshold < 1.0:
-                nms_filter = get_nms_filter(shapes, nms_threshold, cross_class_nms)
-                shapes = list(compress(shapes, nms_filter))
 
             dataset_item.append_shapes(shapes)
 

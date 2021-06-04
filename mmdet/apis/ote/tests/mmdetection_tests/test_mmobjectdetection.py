@@ -3,6 +3,7 @@ import numpy as np
 import os.path as osp
 import time
 import unittest
+import pytest
 
 from concurrent.futures import ThreadPoolExecutor
 
@@ -21,6 +22,16 @@ from sc_sdk.usecases.repos import AnnotationRepo, ImageRepo, VideoRepo
 from mmdet.apis.ote.apis.detection import MMObjectDetectionTask, MMDetectionParameters, configurable_parameters
 from mmdet.apis.ote.tests.test_helpers import train_task, compute_validation_performance
 
+# BEGIN code to use e2e test system
+class Requirements:
+
+    # Dummy requirement
+    REQ_1 = "Dummy requirement"
+
+from e2e.markers.mark_meta import MarkMeta
+class OTEComponent(MarkMeta):
+    OTE = "ote"
+# END code to use e2e test system
 
 class TestOTEDetection(unittest.TestCase):
     """
@@ -91,6 +102,10 @@ class TestOTEDetection(unittest.TestCase):
         configurable_parameters.learning_parameters.num_epochs.value = num_epochs
         return configurable_parameters
 
+    @pytest.mark.components(OTEComponent.OTE)
+    @pytest.mark.priority_medium
+    @pytest.mark.reqids(Requirements.REQ_1)
+    @pytest.mark.api_other
     @flaky(max_runs=2, rerun_filter=rerun_on_flaky_assert())
     def test_cancel_training_detection(self):
         """
@@ -149,6 +164,10 @@ class TestOTEDetection(unittest.TestCase):
         self.assertLess(time.time() - start_time, 25)  # stopping process has to happen in less than 25 seconds
         train_future.result()
 
+    @pytest.mark.components(OTEComponent.OTE)
+    @pytest.mark.priority_medium
+    @pytest.mark.reqids(Requirements.REQ_1)
+    @pytest.mark.api_other
     @flaky(max_runs=2, rerun_filter=rerun_on_flaky_assert())
     def test_training_and_analyse(self):
         """

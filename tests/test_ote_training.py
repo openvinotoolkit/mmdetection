@@ -66,7 +66,7 @@ def run_ote_training(params: TrainingParameters):
         train_ann_file=train_ann_file,
         train_data_root=train_data_root,
         val_ann_file=val_ann_file,
-        val_data_root=val_data_root)
+        val_data_root=val_data_root,
         test_ann_file=test_ann_file,
         test_data_root=test_data_root)
 

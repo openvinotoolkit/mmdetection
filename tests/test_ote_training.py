@@ -124,7 +124,8 @@ def _get_training_params_from_dataset_definitions(dataset_definitions, dataset_n
 @e2e_pytest
 @pytest.mark.parametrize('dataset_name',
                          ['coco_shortened_500',
-                          'vitens_tiled_shortened_500'])
+                          'vitens_tiled_shortened_500',
+			'vitens_tiled_shortened_500_A'])
 def test_ote_training(dataset_name, dataset_definitions_fx):
     training_params = _get_training_params_from_dataset_definitions(dataset_definitions_fx, dataset_name)
     run_ote_training(training_params)

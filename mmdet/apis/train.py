@@ -121,12 +121,21 @@ def train_detector(model,
     compression_ctrl = None
     nncf_config = cfg.get('nncf_config')
     is_acc_aware_training_set = is_accuracy_aware_training_set(nncf_config)
-
-    nncf_enable_compression = bool(nncf_config)
+    nncf_enable_compression = bool(cfg.get('nncf_config'))
     if nncf_enable_compression:
+        dataloader_for_init = build_dataloader(
+            dataset[0],
+            1,
+            cfg.data.workers_per_gpu,
+            # cfg.gpus will be ignored if distributed
+            len(cfg.gpu_ids),
+            dist=distributed,
+            seed=cfg.seed
+        )
+
         compression_ctrl, model = wrap_nncf_model(model, cfg,
                                                   val_dataloader=val_dataloader,
-                                                  dataloader_for_init=data_loaders[0],
+                                                  dataloader_for_init=dataloader_for_init,
                                                   get_fake_input_func=get_fake_input)
 
     model = prepare_mmdet_model_for_execution(model, cfg, distributed)
@@ -135,14 +144,14 @@ def train_detector(model,
     optimizer = build_optimizer(model, cfg.optimizer)
     if 'runner' not in cfg:
         runner_cls = EpochBasedRunner
-        if nncf_enable_compression and is_accuracy_aware_training_set:
+        if nncf_enable_compression and is_acc_aware_training_set:
             runner_cls = AccuracyAwareRunner
         cfg.runner = {
             'type': runner_cls,
             'max_epochs': cfg.total_epochs
         }
     else:
-        if is_accuracy_aware_training_set and cfg.runner.type != 'AccuracyAwareRunner':
+        if is_acc_aware_training_set and cfg.runner.type != 'AccuracyAwareRunner':
             raise RuntimeError('Accuracy-aware training parameters were specified '
                                'in the compression config, but the runner type '
                                'specified in the config differs from "AccuracyAwareRunner". '

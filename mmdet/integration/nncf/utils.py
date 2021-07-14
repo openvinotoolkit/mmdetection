@@ -4,6 +4,8 @@ from contextlib import contextmanager
 
 import torch
 
+from mmdet.utils import get_root_logger
+
 
 _is_nncf_enabled = importlib.util.find_spec('nncf') is not None
 
@@ -88,4 +90,11 @@ def is_accuracy_aware_training_set(nncf_config):
     if not is_nncf_enabled():
         return False
     from nncf.config.utils import is_accuracy_aware_training
-    return is_accuracy_aware_training(nncf_config)
+    is_acc_aware_training_set = is_accuracy_aware_training(nncf_config)
+    if is_acc_aware_training_set:
+        logger = get_root_logger()
+        if 'target_metric_name' not in nncf_config:
+            logger.warning('The "target_metric_name" parameter not '
+                           'found in the NNCF config - proceeding with the default "bbox_mAP"')
+            nncf_config.target_metric_name = 'bbox_mAP'
+    return is_acc_aware_training_set

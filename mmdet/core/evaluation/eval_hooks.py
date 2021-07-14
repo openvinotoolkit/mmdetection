@@ -173,16 +173,16 @@ class EvalHook(Hook):
                              f'Best {self.key_indicator} is {best_score:0.4f}')
 
     def evaluate(self, runner, results):
-        self.eval_res = self.dataloader.dataset.evaluate(
+        eval_res = self.dataloader.dataset.evaluate(
             results, logger=runner.logger, **self.eval_kwargs)
-        for name, val in self.eval_res.items():
+        for name, val in eval_res.items():
             runner.log_buffer.output[name] = val
         runner.log_buffer.ready = True
         if self.save_best is not None:
             if self.key_indicator == 'auto':
                 # infer from eval_results
-                self._init_rule(self.rule, list(self.eval_res.keys())[0])
-            return self.eval_res[self.key_indicator]
+                self._init_rule(self.rule, list(eval_res.keys())[0])
+            return eval_res[self.key_indicator]
         else:
             return None
 

@@ -3,7 +3,6 @@ import numpy as np
 import random
 import torch
 from copy import copy
-from mmcv.parallel import MMDataParallel, MMDistributedDataParallel
 from mmcv.runner import (HOOKS, DistSamplerSeedHook, EpochBasedRunner, LoggerHook,
                          Fp16OptimizerHook, OptimizerHook, build_optimizer, load_checkpoint,
                          build_runner)
@@ -15,12 +14,13 @@ from mmdet.integration.nncf import CheckpointHookBeforeTraining
 from mmdet.integration.nncf import wrap_nncf_model
 from mmdet.integration.nncf import AccuracyAwareRunner
 from mmdet.integration.nncf import is_accuracy_aware_training_set
-from mmdet.parallel import MMDataCPU
 from mmcv.utils import build_from_cfg
 
 from mmdet.datasets import (build_dataloader, build_dataset,
                             replace_ImageToTensor)
 from mmdet.utils import get_root_logger
+from mmdet.utils import prepare_mmdet_model_for_execution
+
 from .fake_input import get_fake_input
 
 
@@ -101,6 +101,7 @@ def train_detector(model,
     if torch.cuda.is_available():
         model = model.cuda()
 
+    val_dataloader = None
     if validate:
         # Support batch_size > 1 in validation
         val_samples_per_gpu = cfg.data.val.pop('samples_per_gpu', 1)
@@ -116,62 +117,37 @@ def train_detector(model,
             dist=distributed,
             shuffle=False)
 
-    def wrap_model_with_mmdet(model):
-        if torch.cuda.is_available():
-            if distributed:
-                # put model on gpus
-                find_unused_parameters = cfg.get('find_unused_parameters', False)
-                # Sets the `find_unused_parameters` parameter in
-                # torch.nn.parallel.DistributedDataParallel
-                model = MMDistributedDataParallel(
-                    model,
-                    device_ids=[torch.cuda.current_device()],
-                    broadcast_buffers=False,
-                    find_unused_parameters=find_unused_parameters)
-            else:
-                model = MMDataParallel(
-                    model.cuda(cfg.gpu_ids[0]), device_ids=cfg.gpu_ids)
-        else:
-            model = MMDataCPU(model)
-        return model
-
     # nncf model wrapper
     compression_ctrl = None
     nncf_config = cfg.get('nncf_config')
+    is_acc_aware_training_set = is_accuracy_aware_training_set(nncf_config)
+
     nncf_enable_compression = bool(nncf_config)
     if nncf_enable_compression:
-
-        def model_eval_fn(model):
-            """
-            Runs evaluation of the model on the validation set and returns bbox_mAP value.
-            Used to evaluate the original model before compression
-            if NNCF-based accuracy-aware training is used.
-            """
-            from mmdet.apis import single_gpu_test
-            model = wrap_model_with_mmdet(model)
-            results = single_gpu_test(model, val_dataloader, show=False)
-            eval_res = val_dataloader.dataset.evaluate(results)
-            return eval_res['bbox_mAP']
-
         compression_ctrl, model = wrap_nncf_model(model, cfg,
-                                                  model_eval_fn=model_eval_fn,
-                                                  data_loader_for_init=data_loaders[0],
+                                                  val_dataloader=val_dataloader,
+                                                  dataloader_for_init=data_loaders[0],
                                                   get_fake_input_func=get_fake_input)
 
-    model = wrap_model_with_mmdet(model)
+    model = prepare_mmdet_model_for_execution(model, cfg, distributed)
 
     # build runner
     optimizer = build_optimizer(model, cfg.optimizer)
-
     if 'runner' not in cfg:
         runner_cls = EpochBasedRunner
-        if nncf_enable_compression and is_accuracy_aware_training_set(nncf_config):
+        if nncf_enable_compression and is_accuracy_aware_training_set:
             runner_cls = AccuracyAwareRunner
         cfg.runner = {
             'type': runner_cls,
             'max_epochs': cfg.total_epochs
         }
     else:
+        if is_accuracy_aware_training_set and cfg.runner.type != 'AccuracyAwareRunner':
+            raise RuntimeError('Accuracy-aware training parameters were specified '
+                               'in the compression config, but the runner type '
+                               'specified in the config differs from "AccuracyAwareRunner". '
+                               'Please specify runner.type="AccuracyAwareRunner" in the config'
+                               'to run the accuracy-aware training loop')
         if 'total_epochs' in cfg:
             assert cfg.total_epochs == cfg.runner.max_epochs
 

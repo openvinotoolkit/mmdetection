@@ -80,7 +80,8 @@ def get_nncf_config_from_meta(path):
 def wrap_nncf_model(model,
                     cfg,
                     data_loader_for_init=None,
-                    get_fake_input_func=None):
+                    get_fake_input_func=None,
+                    is_alt_ssd_export=False):
     """
     The function wraps mmdet model by NNCF
     Note that the parameter `get_fake_input_func` should be the function `get_fake_input`
@@ -91,15 +92,18 @@ def wrap_nncf_model(model,
 
     from nncf import (NNCFConfig, create_compressed_model,
                       register_default_init_args)
-    from nncf.dynamic_graph.io_handling import nncf_model_input
+    from nncf.dynamic_graph.io_handling import nncf_model_input, wrap_nncf_model_outputs_with_objwalk
     from nncf.dynamic_graph.trace_tensor import TracedTensor
     from nncf.initialization import InitializingDataLoader
 
     class MMInitializeDataLoader(InitializingDataLoader):
+
         def get_inputs(self, dataloader_output):
             # redefined InitializingDataLoader because
             # of DataContainer format in mmdet
             kwargs = {k: v.data[0] for k, v in dataloader_output.items()}
+            kwargs['img'] = [kwargs['img']]
+            kwargs['img_metas'] = [kwargs['img_metas']]
             return (), kwargs
 
     pathlib.Path(cfg.work_dir).mkdir(parents=True, exist_ok=True)
@@ -168,20 +172,29 @@ def wrap_nncf_model(model,
         img, img_metas = fake_data["img"], fake_data["img_metas"]
         img[0] = nncf_model_input(img[0])
         if nncf_compress_postprocessing:
+            if is_alt_ssd_export:
+                img = img[0]
+                img_metas = img_metas[0]
             ctx = model.forward_export_context(img_metas)
             logger.debug(f"NNCF will compress a postprocessing part of the model")
         else:
             ctx = model.forward_dummy_context(img_metas)
             logger.debug(f"NNCF will NOT compress a postprocessing part of the model")
         with ctx:
-            model(img)
+            wrap_nncf_model_outputs_with_objwalk(model(img))
+
 
     def wrap_inputs(args, kwargs):
         # during dummy_forward
         if not len(kwargs):
-            if not isinstance(args[0][0], TracedTensor):
-                args[0][0] = nncf_model_input(args[0][0])
-            return args, kwargs
+            if is_alt_ssd_export:
+                if not isinstance(args[0], TracedTensor):
+                    nncf_input = nncf_model_input(args[0])
+                return (nncf_input,), kwargs
+            else:
+                if not isinstance(args[0][0], TracedTensor):
+                    args[0][0] = nncf_model_input(args[0][0])
+                return args, kwargs
 
         # during building original graph
         if not kwargs.get('return_loss') and kwargs.get('forward_export'):
@@ -205,11 +218,12 @@ def wrap_nncf_model(model,
 
     if 'log_dir' in nncf_config:
         os.makedirs(nncf_config['log_dir'], exist_ok=True)
-    compression_ctrl, model = create_compressed_model(model,
-                                                      nncf_config,
-                                                      dummy_forward_fn=dummy_forward,
-                                                      wrap_inputs_fn=wrap_inputs,
-                                                      resuming_state_dict=resuming_state_dict)
+    with model.forward_nncf_initialization_context():
+        compression_ctrl, model = create_compressed_model(model,
+                                                          nncf_config,
+                                                          dummy_forward_fn=dummy_forward,
+                                                          wrap_inputs_fn=wrap_inputs,
+                                                          resuming_state_dict=resuming_state_dict)
     model.export = export_method.__get__(model)
 
     return compression_ctrl, model
